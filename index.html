@@ -239,7 +239,7 @@ th.ordenable:hover { background-color: #322a9a; }
 
             <label for="ordenar-por" style="font-weight: bold; color: #1e5631; margin-left: 20px;">Ordenar Bateadores por:</label>
             <select id="ordenar-por" onchange="cargarJugadores()" style="margin-left: 10px; padding: 5px;">
-                <option value="defecto">Orden de registro</option>
+                
                 <option value="avg">AVG (Mayor a Menor)</option>
                 <option value="slg">SLG (Mayor a Menor)</option>
                 <option value="tb">Bases Totales - TB (Mayor a Menor)</option>
@@ -477,7 +477,7 @@ async function cargarJugadores() {
         // 2. Ordenar Bateadores
         const selectOrden = document.getElementById('ordenar-por');
         const criterioOrden = selectOrden ? selectOrden.value : 'defecto';
-        if (criterioOrden !== 'defecto') {
+        if (criterioOrden !== 'h') {
             datos.sort((a, b) => (parseFloat(b[criterioOrden]) || 0) - (parseFloat(a[criterioOrden]) || 0));
         }
 
