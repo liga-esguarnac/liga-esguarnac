@@ -476,8 +476,8 @@ async function cargarJugadores() {
 
         // 2. Ordenar Bateadores
         const selectOrden = document.getElementById('ordenar-por');
-        const criterioOrden = selectOrden ? selectOrden.value : 'defecto';
-        if (criterioOrden !== 'h') {
+        const criterioOrden = selectOrden ? selectOrden.value : 'h';
+        if (criterioOrden !== 'defecto') {
             datos.sort((a, b) => (parseFloat(b[criterioOrden]) || 0) - (parseFloat(a[criterioOrden]) || 0));
         }
 
