@@ -948,6 +948,104 @@ svr.Options("/resultados", [](const httplib::Request& req, httplib::Response& re
     res.set_header("Access-Control-Allow-Headers", "Content-Type");
     res.status = 200;
 });
+// ==========================================
+// RUTAS PARA PROGRAMACIÓN DE LA SEMANA
+// ==========================================
+
+// 1. Ruta GET (Leer Programación)
+svr.Get("/programacion", [](const httplib::Request& req, httplib::Response& res) {
+    res.set_header("Access-Control-Allow-Origin", "*");
+    httplib::Client cli("https://liga-esguarnac-default-rtdb.firebaseio.com");
+    cli.enable_server_certificate_verification(false);
+    
+    if (auto fire_res = cli.Get("/programacion.json")) {
+        if (fire_res->status == 200) {
+            std::string data = fire_res->body == "null" ? "[]" : fire_res->body;
+            res.set_content(data, "application/json");
+        } else {
+            res.status = 500;
+            res.set_content("Error al leer programacion en Firebase", "text/plain");
+        }
+    } else {
+        res.status = 500;
+        res.set_content("Fallo de conexion a Firebase", "text/plain");
+    }
+});
+
+// 2. Ruta POST (Guardar Juego Programado)
+svr.Post("/programacion", [](const httplib::Request& req, httplib::Response& res) {
+    res.set_header("Access-Control-Allow-Origin", "*");
+    httplib::Client cli("https://liga-esguarnac-default-rtdb.firebaseio.com");
+    cli.enable_server_certificate_verification(false);
+    
+    auto fire_get = cli.Get("/programacion.json");
+    nlohmann::json programacion = nlohmann::json::array();
+    if (fire_get && fire_get->status == 200 && fire_get->body != "null") {
+        auto parsed = nlohmann::json::parse(fire_get->body);
+        if (parsed.is_array()) {
+            for (auto& el : parsed) if (!el.is_null()) programacion.push_back(el);
+        } else if (parsed.is_object()) {
+            for (auto& el : parsed.items()) if (!el.value().is_null()) programacion.push_back(el.value());
+        }
+    }
+
+    nlohmann::json nuevo = nlohmann::json::parse(req.body);
+    programacion.push_back(nuevo);
+
+    auto fire_put = cli.Put("/programacion.json", programacion.dump(), "application/json");
+    if (fire_put && fire_put->status == 200) {
+        res.status = 200;
+        res.set_content("Programacion guardada en Firebase", "text/plain");
+    } else {
+        res.status = 500;
+        res.set_content("Error al guardar en Firebase", "text/plain");
+    }
+});
+
+// 3. Ruta DELETE (Eliminar Juego Programado)
+svr.Delete("/programacion", [](const httplib::Request& req, httplib::Response& res) {
+    res.set_header("Access-Control-Allow-Origin", "*");
+    
+    if (req.has_param("id")) {
+        int index = std::stoi(req.get_param_value("id"));
+        httplib::Client cli("https://liga-esguarnac-default-rtdb.firebaseio.com");
+        cli.enable_server_certificate_verification(false);
+        
+        auto fire_get = cli.Get("/programacion.json");
+        if (fire_get && fire_get->status == 200 && fire_get->body != "null") {
+            auto parsed = nlohmann::json::parse(fire_get->body);
+            nlohmann::json programacion = nlohmann::json::array();
+            if (parsed.is_array()) {
+                for (auto& el : parsed) if (!el.is_null()) programacion.push_back(el);
+            } else if (parsed.is_object()) {
+                for (auto& el : parsed.items()) if (!el.value().is_null()) programacion.push_back(el.value());
+            }
+            
+            if (index >= 0 && index < programacion.size()) {
+                programacion.erase(index);
+                auto fire_put = cli.Put("/programacion.json", programacion.dump(), "application/json");
+                if (fire_put && fire_put->status == 200) {
+                    res.status = 200;
+                    res.set_content("Eliminado de Firebase", "text/plain");
+                    return;
+                }
+            }
+        }
+        res.status = 500;
+        res.set_content("Error al borrar en Firebase", "text/plain");
+    } else {
+        res.status = 400;
+        res.set_content("Falta enviar el ID", "text/plain");
+    }
+});
+
+// 4. Ruta OPTIONS obligatoria para navegadores (CORS)
+svr.Options("/programacion", [](const httplib::Request& req, httplib::Response& res) {
+    res.set_header("Access-Control-Allow-Origin", "*");
+    res.set_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    res.set_header("Access-Control-Allow-Headers", "Content-Type");
+    res.status = 200;
+});
 
 // --- FINAL DEL PROGRAMA ---
 int port = 8080;

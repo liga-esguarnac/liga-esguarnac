@@ -134,7 +134,8 @@ th.ordenable:hover { background-color: #322a9a; }
 <nav class="menu-pestanas">
   <button class="tab-btn activo" onclick="cambiarPestana(event, 'resumen')">🏆 Resumen del Torneo</button>
   <button class="tab-btn" onclick="cambiarPestana(event, 'equipos')">👥 Estadísticas de Equipos</button>
-    <button class="tab-btn" onclick="cambiarPestana(event, 'resultados')">⚾ Resultados</button>
+  <button class="tab-btn" onclick="cambiarPestana(event, 'programacion')">📅 Programación</button>
+  <button class="tab-btn" onclick="cambiarPestana(event, 'resultados')">⚾ Resultados</button>
 </nav>
 
 <!-- SECCIÓN 1: Resumen (Tabla de posiciones) -->
@@ -345,6 +346,66 @@ th.ordenable:hover { background-color: #322a9a; }
     </div> <!-- Cierre del contenedor interior -->
     
 </div> <!-- CIERRE FINAL DE LA PESTAÑA EQUIPOS -->
+<!-- SECCIÓN PROGRAMACIÓN DE JUEGOS -->
+<div id="programacion" class="seccion-tab oculto">
+    <div class="contenedor">
+        <h2>Programación de la Jornada</h2>
+
+        <!-- Formulario para programar juego (Solo Admin) -->
+        <div class="formulario admin-solo">
+            <input type="date" id="fecha-prog">
+            <input type="time" id="hora-prog">
+
+            <select id="visitante-prog">
+                <option value="Bandoleros">Bandoleros (Visitante)</option>
+                <option value="Warriors N">Warriors N (Visitante)</option>
+                <option value="Warriors B">Warriors B (Visitante)</option>
+                <option value="Elite">Elite (Visitante)</option>
+                <option value="Torno Miranda">Torno Miranda (Visitante)</option>
+                <option value="Hidroponias">Hidroponias (Visitante)</option>
+                <option value="La Guardia">La Guardia (Visitante)</option>
+                <option value="Pandas">Pandas (Visitante)</option>
+                <option value="Apocalipsis">Apocalipsis (Visitante)</option>
+            </select>
+
+            <span style="font-weight: bold; font-size: 18px; align-self: center; text-align: center;"> VS </span>
+
+            <select id="local-prog">
+                <option value="Bandoleros">Bandoleros (Local)</option>
+                <option value="Warriors N">Warriors N (Local)</option>
+                <option value="Warriors B">Warriors B (Local)</option>
+                <option value="Elite">Elite (Local)</option>
+                <option value="Torno Miranda">Torno Miranda (Local)</option>
+                <option value="Hidroponias">Hidroponias (Local)</option>
+                <option value="La Guardia">La Guardia (Local)</option>
+                <option value="Pandas">Pandas (Local)</option>
+                <option value="Apocalipsis">Apocalipsis (Local)</option>
+            </select>
+
+            <input type="text" id="campo-prog" placeholder="Campo / Nota (Opcional)">
+
+            <button onclick="guardarProgramacion()">Agregar Juego</button>
+        </div>
+
+        <!-- Tabla de Juegos Programados -->
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Equipo Visitante</th>
+                    <th>VS</th>
+                    <th>Equipo Local</th>
+                    <th>Campo / Nota</th>
+                    <th class="admin-solo">Acción</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-programacion">
+                <!-- Se llena dinámicamente con JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
 <!-- SECCIÓN 3: RESULTADOS DE LA JORNADA -->
 <div id="resultados" class="seccion-tab oculto">
     <div class="contenedor">
@@ -1216,14 +1277,111 @@ async function guardarEdicion() {
         console.error(error);
     }
 }
+
+// 1. Guardar nuevo juego en Programación
+async function guardarProgramacion() {
+    const fecha = document.getElementById('fecha-prog').value;
+    const hora = document.getElementById('hora-prog').value;
+    const visitante = document.getElementById('visitante-prog').value;
+    const local = document.getElementById('local-prog').value;
+    const campo = document.getElementById('campo-prog').value;
+
+    if (!fecha || !hora || !visitante || !local) {
+        alert('Por favor, selecciona la fecha, hora y los equipos.');
+        return;
+    }
+
+    const nuevoJuegoProg = {
+        fecha: fecha,
+        hora: hora,
+        Visitante: visitante,
+        Local: local,
+        campo: campo || '-'
+    };
+
+    try {
+        const respuesta = await fetch('https://liga-esguarnac.onrender.com/programacion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(nuevoJuegoProg)
+        });
+
+        if (respuesta.ok) {
+            alert('¡Juego programado exitosamente!');
+            document.getElementById('campo-prog').value = '';
+            cargarProgramacion();
+        }
+    } catch (error) {
+        console.error('Error al guardar programación:', error);
+    }
+}
+
+// 2. Cargar y pintar los juegos programados
+async function cargarProgramacion() {
+    try {
+        const respuesta = await fetch('https://liga-esguarnac.onrender.com/programacion', { cache: 'no-store' });
+        if (!respuesta.ok) return;
+
+        let juegos = await respuesta.json();
+        const tbody = document.getElementById('tabla-programacion');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (juegos !== null) {
+            if (!Array.isArray(juegos)) juegos = Object.values(juegos);
+        } else {
+            juegos = [];
+        }
+
+        juegos.forEach((juego, index) => {
+            if (!juego) return;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${juego.fecha || '-'}</td>
+                <td><strong>${juego.hora || '-'}</strong></td>
+                <td><strong>${juego.Visitante || '-'}</strong></td>
+                <td>VS</td>
+                <td><strong>${juego.Local || '-'}</strong></td>
+                <td>${juego.campo || '-'}</td>
+                <td class="admin-solo">
+                    <button onclick="eliminarProgramacion(${index})" style="background-color: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer;">Eliminar</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        aplicarModoAdmin();
+    } catch (error) {
+        console.error('Error al cargar programación:', error);
+    }
+}
+
+// 3. Eliminar un juego programado (Modo Admin)
+async function eliminarProgramacion(index) {
+    if (!confirm("¿Estás seguro de que deseas eliminar este juego de la programación?")) return;
+
+    try {
+        const respuesta = await fetch(`https://liga-esguarnac.onrender.com/programacion?id=${index}`, {
+            method: 'DELETE'
+        });
+        if (respuesta.ok) {
+            cargarProgramacion();
+        } else {
+            alert("Error al eliminar el juego en el servidor.");
+        }
+    } catch (error) {
+        console.error("Error al intentar eliminar:", error);
+    }
+}
+
+
 // Elite. Ejecutar al iniciar
 window.onload = () => {
-     cargarJugadores();
+    cargarJugadores();
     cargarPitchers();
-   
-    
     cargarEquipos();
     cargarResultados();
+    cargarProgramacion(); // <-- NUEVO
     aplicarModoAdmin();
 };
 
